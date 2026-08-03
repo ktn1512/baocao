@@ -1,1 +1,4 @@
-
+Hệ điều hành: có những hệ điều hành phổ biến nào, hệ điều hành dùng trên xe là gì, tại sao lại dùng nó
+icp là gì, binder icp là gì, tại sao lại sử dụng icp và binder icp với xe ô tô
+mqtt là gì và tại sao lại sử dụng mqtt đối với xe ô tô
+ví dụ code nếu có
