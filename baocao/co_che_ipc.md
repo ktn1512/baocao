@@ -1,56 +1,47 @@
-# Các cơ chế IPC phổ biến (Inter-Process Communication)
+# Các cơ chế IPC phổ biến
 
 ## Mục lục
 
-1. [Pipe](#1-pipe)
-2. [FIFO (Named Pipe)](#2-fifo-named-pipe)
-3. [Message Queue](#3-message-queue)
-4. [Shared Memory](#4-shared-memory)
-5. [Socket](#5-socket)
-6. [Signal](#6-signal)
-7. [RPC (Remote Procedure Call)](#7-rpc-remote-procedure-call)
-
----
-
-# IPC là gì?
-
-**IPC (Inter-Process Communication)** là các cơ chế giúp các process trong hệ điều hành có thể trao đổi dữ liệu và đồng bộ với nhau.
-
-Các cơ chế IPC phổ biến:
-
-- Pipe
-- FIFO
-- Message Queue
-- Shared Memory
-- Socket
-- Signal
-- RPC
+- [1. Pipe](#1-pipe)
+- [2. FIFO - Named Pipe](#2-fifo---named-pipe)
+- [3. Message Queue](#3-message-queue)
+- [4. Shared Memory](#4-shared-memory)
+- [5. Socket](#5-socket)
+- [6. Signal](#6-signal)
+- [7. RPC - Remote Procedure Call](#7-rpc---remote-procedure-call)
 
 ---
 
 # 1. Pipe
 
-## Khái niệm
-
-Pipe giống như một **đường ống byte**, dữ liệu chảy theo một hướng:
+Pipe giống như một đường ống byte.
 
 ```
 Process A ──────── Pipe ────────> Process B
 
-Process A ghi "Hello"
-Process B đọc "Hello"
+              dữ liệu chảy một chiều
 ```
 
-Pipe thường có hai đầu:
+Process A ghi:
 
 ```
-fd[0] : đọc dữ liệu
-fd[1] : ghi dữ liệu
+Hello
 ```
 
----
+Process B đọc:
 
-## Ví dụ Pipe trong Linux
+```
+Hello
+```
+
+Pipe thường có 2 đầu:
+
+```
+fd[0]: đọc
+fd[1]: ghi
+```
+
+## Ví dụ
 
 ```cpp
 #include <iostream>
@@ -79,14 +70,13 @@ int main(){
 
     if(pid == 0){
 
-        // Process con chỉ đọc
         close(pipe_fd[1]);
 
         char buffer[100]{};
 
         read(pipe_fd[0], buffer, sizeof(buffer));
 
-        std::cout<<"Process con nhận: "
+        std::cout<<"Process con nhan "
                  << buffer << "\n";
 
         close(pipe_fd[0]);
@@ -94,87 +84,61 @@ int main(){
     }
     else{
 
-        // Process cha chỉ ghi
         close(pipe_fd[0]);
 
         const char* message =
             "Xin chao process con";
 
-
         write(
             pipe_fd[1],
             message,
-            strlen(message)+1
+            std::strlen(message)+1
         );
-
 
         close(pipe_fd[1]);
 
         wait(nullptr);
     }
 
-
     return 0;
 }
 ```
 
----
-
-## Luồng hoạt động
+## Luồng
 
 ```
 Process cha
 
-    |
-    | write("Xin chao")
-    |
-    v
+   |
+   | write("Xin chao")
+   |
+   v
 
-   Pipe
+ Pipe
 
-    |
-    | read()
-    |
-    v
+   |
+   | read()
+   |
+   v
 
 Process con
 ```
 
----
+Pipe thông thường phù hợp nhất với các process có quan hệ cha-con, vì process con kế thừa file descriptor sau `fork()`.
 
 ## Đặc điểm Pipe
 
-Ưu điểm:
-
 - Đơn giản
-- Truyền dữ liệu dạng byte stream
-- Tốc độ tốt
-
-Nhược điểm:
-
-- Thường chỉ truyền một chiều
-- Không lưu dữ liệu lâu dài
-
-Pipe phù hợp nhất với các process có quan hệ:
-
-```
-Parent Process
-       |
-      fork()
-       |
-       v
-Child Process
-```
-
-Vì process con kế thừa file descriptor sau khi `fork()`.
+- Truyền theo luồng byte
+- Thường một chiều
+- Chủ yếu dùng giữa process có quan hệ cha-con
+- Dữ liệu không tồn tại lâu dài
 
 ---
 
-# 2. FIFO (Named Pipe)
+# 2. FIFO - Named Pipe
 
-## Khái niệm
-
-FIFO giống Pipe nhưng có **tên trong filesystem**.
+FIFO gần giống pipe nhưng có tên trong filesystem.
 
 Ví dụ:
 
@@ -182,29 +146,27 @@ Ví dụ:
 /tmp/my_fifo
 ```
 
-Mô hình:
+Luồng:
 
 ```
 Process A
 
-    |
-    | ghi vào /tmp/my_fifo
-    |
-    v
+   |
+   | ghi vào /tmp/my_fifo
+   |
+   v
 
-   FIFO
+FIFO
 
-    |
-    | đọc từ /tmp/my_fifo
-    |
-    v
+   |
+   | đọc từ /tmp/my_fifo
+   |
+   v
 
 Process B
 ```
 
----
-
-## Tạo FIFO trên Linux
+## Ví dụ tạo FIFO trên Linux
 
 Tạo FIFO:
 
@@ -224,32 +186,30 @@ Terminal 2:
 cat /tmp/my_fifo
 ```
 
----
-
 ## Pipe và FIFO khác nhau
 
-| Pipe | FIFO |
-|---|---|
-| Không có tên | Có tên trong filesystem |
-| Thường dùng cha-con | Process độc lập có thể sử dụng |
-| Tồn tại trong kernel | Có entry trong filesystem |
+### Pipe
+
+- Không có tên
+- Thường dùng cha-con
+
+### FIFO
+
+- Có tên trong filesystem
+- Process độc lập vẫn mở được
 
 ---
 
-# 3. Message Queue
-
-## Khái niệm
-
-Message Queue là hàng đợi các message.
+# 3. Message Queue - Hàng đợi thông điệp
 
 ```
 Process A
 
-    |
-    | Message 1
-    | Message 2
-    |
-    v
+   |
+   | gửi Message 1
+   | gửi Message 2
+   |
+   v
 
 +----------------+
 | Message 1      |
@@ -257,20 +217,18 @@ Process A
 | Message 3      |
 +----------------+
 
-    |
-    v
+   |
+   v
 
 Process B
 ```
 
----
+Điểm khác Pipe:
 
-Khác với Pipe:
+- Pipe là một luồng liên tục
+- Message chia thành từng message riêng
 
-- Pipe truyền một luồng byte liên tục
-- Message Queue chia dữ liệu thành từng message riêng biệt
-
-Ví dụ:
+Ví dụ gửi:
 
 ```
 Message 1:
@@ -291,201 +249,137 @@ Message 2:
 }
 ```
 
----
-
 ## Ưu điểm
 
-- Giữ được ranh giới message
-- Xử lý theo thứ tự
-- Process gửi và nhận không cần chạy cùng lúc
-- Có thể hỗ trợ độ ưu tiên
-
----
+- Giữ ranh giới giữa các message
+- Có thể xử lí theo thứ tự
+- Người gửi và nhận không nhất thiết chạy cùng 1 lúc
+- Có thể hỗ trợ mức độ ưu tiên
 
 ## Nhược điểm
 
 - Kích thước message thường bị giới hạn
-- Chậm hơn Shared Memory
-- Cần đóng gói và sao chép dữ liệu
+- Chậm hơn shared memory
+- Phải đóng gói và sao chép dữ liệu
 
 ---
 
 # 4. Shared Memory
 
-## Khái niệm
-
-Shared Memory cho phép nhiều process ánh xạ vào cùng một vùng RAM.
+Shared Memory cho phép nhiều process ánh xạ vào một vùng RAM.
 
 ```
-Process A Memory              Process B Memory
+Process A memory             Process B memory
 
-+-------------+                +-------------+
-| Private A   |                | Private B   |
-+-------------+                +-------------+
-|             |                |             |
-| Shared Mem  |----------------| Shared Mem  |
-|             |                |             |
-+-------------+                +-------------+
+┌───────────────┐            ┌───────────────┐
+│ Vùng riêng A  │            │ Vùng riêng B  │
+├───────────────┤            ├───────────────┤
+│ Shared Memory │────────────│ Shared Memory │
+└───────────────┘            └───────────────┘
 ```
 
-Hai process thực chất truy cập cùng một vùng nhớ vật lý.
+Cả 2 process thực chất cùng truy cập vào cùng một vùng vật lí.
 
 Ví dụ:
 
 ```
-Process A:
+Process A ghi:
 
-shared_memory = 100
+value = 100
 
 
-Process B:
+        ↓
 
-đọc shared_memory
 
-=> 100
+Process B đọc được:
+
+value = 100
 ```
 
----
+Shared Memory thường là cơ chế IPC nhanh nhất đối với lượng dữ liệu lớn vì không cần liên tục copy toàn bộ dữ liệu qua kernel.
 
-## Ưu điểm
+## Ví dụ
 
-Shared Memory thường là IPC nhanh nhất khi truyền dữ liệu lớn.
-
-Ứng dụng:
-
-- Frame camera
-- Hình ảnh
+- Truyền frame camera
+- Truyền hình ảnh
 - Buffer âm thanh
-- Dữ liệu sensor
-- Hệ thống realtime
+- Dữ liệu cảm biến lớn
+- Dữ liệu thời gian thực
 
 ---
 
-## Vấn đề Race Condition
+## Vấn đề của Shared Memory
 
-Ví dụ:
-
-Hai process cùng thực hiện:
+Giả sử cả 2 process đều thực hiện:
 
 ```
 shared_memory++;
 ```
 
-Thực chất gồm:
+Lệnh gồm:
 
-```
-1. Đọc giá trị
+1. Đọc shared memory
 2. Cộng 1
 3. Ghi lại
-```
 
-Ban đầu:
-
-```
-shared_memory = 0
-```
-
-Process A:
+Nếu cả hai cùng đọc giá trị 0:
 
 ```
-Read 0
+Process A đọc 0
+
+Process B đọc 0
 ```
 
-Process B:
+Process A ghi:
 
 ```
-Read 0
+1
 ```
 
-Process A:
+Process B ghi:
 
 ```
-Write 1
+1
 ```
 
-Process B:
+Nếu xảy ra tuần tự thì kết quả sẽ là:
 
 ```
-Write 1
+2
 ```
 
-Kết quả:
+Nhưng nếu xảy ra đồng thời thì kết quả là:
 
 ```
-shared_memory = 1
+1
 ```
 
-Trong khi mong muốn:
-
-```
-shared_memory = 2
-```
-
----
-
-## Giải pháp đồng bộ
-
-Shared Memory thường đi cùng:
+Vì vậy Shared Memory phải đi cùng với:
 
 - Mutex
 - Semaphore
 - Atomic
 - Condition Variable
 
-Cần nhớ:
+Shared Memory dùng để truyền dữ liệu.
 
-```
-Shared Memory
-        |
-        |
-        v
-
-Truyền dữ liệu
-
-
-Mutex/Semaphore
-        |
-        |
-        v
-
-Đồng bộ truy cập dữ liệu
-```
+Mutex và Semaphore dùng để đồng bộ việc truy cập dữ liệu đó.
 
 ---
 
 # 5. Socket
 
-## Khái niệm
+Socket cho phép 2 process giao tiếp với nhau.
 
-Socket cho phép hai process giao tiếp với nhau.
-
-Có hai loại chính:
-
----
+Có 2 loại quan trọng:
 
 ## Unix Domain Socket
 
 Dùng giữa các process trên cùng một máy.
 
-```
-Process A
-
-    |
- Unix Socket
-    |
-Process B
-```
-
----
-
 ## Network Socket
 
-Dùng giao tiếp qua mạng.
-
-Ví dụ:
-
-- TCP
-- UDP
+Dùng qua mạng.
 
 ---
 
@@ -499,9 +393,9 @@ Ví dụ:
 
 Phù hợp:
 
+- Gửi file
 - Web
-- Truyền file
-- Điều khiển từ xa
+- Lệnh điều khiển cần tin cậy
 
 ---
 
@@ -509,50 +403,37 @@ Phù hợp:
 
 Đặc điểm:
 
-- Không đảm bảo gói tin đến
+- Không đảm bảo gói đến
 - Không đảm bảo thứ tự
-- Nhanh hơn TCP
+- Nhanh và đơn giản hơn
 
 Phù hợp:
 
 - Streaming
-- Game realtime
 - Dữ liệu gửi liên tục
 
 ---
 
-## Điểm mạnh của Socket
-
-Rất linh hoạt:
+Socket rất linh hoạt:
 
 ```
 Cùng máy:
 
-Process A
-    |
 Unix Domain Socket
-    |
-Process B
 
 
 Khác máy:
 
-Process A
-    |
 TCP/UDP Socket
-    |
-Process B
 ```
 
 ---
 
 # 6. Signal
 
-## Khái niệm
+Signal là một thông báo nhỏ gửi đến process để báo một sự kiện.
 
-Signal là một thông báo nhỏ được gửi tới process để báo một sự kiện.
-
-Signal không dùng để truyền lượng dữ liệu lớn.
+Signal không dùng để truyền dữ liệu lớn.
 
 Ví dụ:
 
@@ -569,10 +450,10 @@ Process B
 
 ---
 
-## Một số signal phổ biến trong Linux
+## Một số Signal phổ biến trên Linux
 
 | Signal | Ý nghĩa |
-|-|-|
+|---|---|
 | SIGINT | Ngắt process (Ctrl + C) |
 | SIGTERM | Yêu cầu process kết thúc |
 | SIGKILL | Kill process ngay lập tức |
@@ -592,22 +473,18 @@ Process B
 Nhược điểm:
 
 - Không truyền được nhiều dữ liệu
-- Không phù hợp để truyền message phức tạp
+- Không phù hợp truyền message phức tạp
 
 ---
 
-# 7. RPC (Remote Procedure Call)
+# 7. RPC - Remote Procedure Call
 
-## Khái niệm
+RPC tạo cảm giác gọi hàm ở process khác hoặc máy khác như gọi hàm bình thường.
 
-RPC tạo cảm giác gọi hàm ở process khác hoặc máy khác giống như gọi hàm bình thường.
-
-Ví dụ:
-
-Client:
+Client viết:
 
 ```cpp
-int result = calc.add(10,20);
+int result = calc.add();
 ```
 
 Nhưng bên dưới:
@@ -615,22 +492,15 @@ Nhưng bên dưới:
 ```
 Client Proxy
 
-      |
-      | đóng gói request
-      |
-      v
+    ↓ đóng gói dữ liệu
 
-IPC / Network
+IPC hoặc Network
 
-      |
-      v
+    ↓
 
 Server Stub
 
-      |
-      | giải mã
-      |
-      v
+    ↓ giải mã
 
 CalculatorService::add()
 ```
@@ -642,38 +512,36 @@ CalculatorService::add()
 ```
 Client
 
- |
- | add(10,20)
- |
- v
+  |
+  | add(10,20)
+  |
+  v
 
 Proxy
 
- |
- | serialize request
- |
- v
+  |
+  | đóng gói request
+  |
+  v
 
-IPC / Network
+IPC
 
- |
- v
+  |
+  v
 
 Stub
 
- |
- | gọi hàm thật
- |
- v
+  |
+  | gọi hàm thật
+  |
+  v
 
 Service
 ```
 
 ---
 
-## RPC sử dụng nền tảng nào?
-
-RPC không phải là cơ chế truyền dữ liệu cấp thấp độc lập.
+RPC không nhất thiết là một cơ chế truyền dữ liệu cấp thấp độc lập.
 
 Nó thường được xây dựng trên:
 
@@ -681,45 +549,18 @@ Nó thường được xây dựng trên:
 - Pipe
 - Message Queue
 - Binder
-- Network Protocol
+- Một giao thức mạng khác
 
 ---
 
 ## Binder
 
-Binder là một hệ thống IPC có mô hình gần giống RPC.
+Binder là một hệ thống IPC có mô hình gần với RPC.
 
-Được sử dụng nhiều trong:
+Binder được sử dụng nhiều trong:
 
 - Android Framework
-- Các service trong Android
+- Android Service
 
----
-
-# So sánh nhanh các IPC
-
-| Cơ chế | Tốc độ | Truyền dữ liệu lớn | Qua mạng | Độ phức tạp |
-|-|-|-|-|-|
-| Pipe | Cao | Không | Không | Thấp |
-| FIFO | Cao | Không | Không | Thấp |
-| Message Queue | Trung bình | Trung bình | Không | Trung bình |
-| Shared Memory | Rất cao | Có | Không | Cao |
-| Socket | Trung bình | Có | Có | Trung bình |
-| Signal | Rất cao | Không | Không | Thấp |
-| RPC | Phụ thuộc | Có | Có | Cao |
-
----
-
-# Kết luận
-
-Không có cơ chế IPC nào tốt nhất cho mọi trường hợp.
-
-Lựa chọn phụ thuộc vào nhu cầu:
-
-- Cần đơn giản giữa cha-con → **Pipe**
-- Process độc lập trên cùng máy → **FIFO**
-- Muốn gửi message có cấu trúc → **Message Queue**
-- Truyền dữ liệu cực lớn → **Shared Memory**
-- Giao tiếp giữa máy khác nhau → **Socket**
-- Chỉ cần báo sự kiện → **Signal**
-- Muốn gọi service như gọi hàm → **RPC**
+```
+```
