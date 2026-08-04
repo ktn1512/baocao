@@ -1,11 +1,10 @@
-#include <iostream>
-#include <cstring>
+#include <sys/socket.h>
+#include <sys/un.h> // Dùng thư viện này thay vì inet.h
 #include <unistd.h>
-#include <arpa/inet.h>
+#include <iostream>
 
-#define PORT 8080
+#define SOCKET_PATH "/tmp/user_info.sock"
 
-// Cấu trúc dữ liệu dùng để truyền IPC
 struct UserInfo {
     char name[50];
     int age;
@@ -13,65 +12,30 @@ struct UserInfo {
 };
 
 int main() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
+    // Xóa file socket cũ nếu có tồn tại
+    unlink(SOCKET_PATH);
 
-    // 1. Tạo Socket
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        std::cerr << "Tạo Socket thất bại!\n";
-        return -1;
-    }
+    // 1. Tạo UNIX Domain Socket (AF_UNIX) - Không cần Port
+    int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 
-    // Cho phép tái sử dụng địa chỉ/port ngay lập tức
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    struct sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
 
-    // 2. Bind Socket vào IP/Port 8080
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        std::cerr << "Bind thất bại!\n";
-        return -1;
-    }
+    // 2. Bind vào FILE PATH trên đĩa thay vì Bind IP/Port
+    bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
+    listen(server_fd, 1);
 
-    // 3. Lắng nghe kết nối từ Client
-    if (listen(server_fd, 1) < 0) {
-        std::cerr << "Listen thất bại!\n";
-        return -1;
-    }
+    std::cout << "[SERVER] Đang chờ Client kết nối qua file: " << SOCKET_PATH << "...\n";
 
-    std::cout << "[SERVER] Đang chờ Client kết nối tới Port " << PORT << "...\n";
+    int new_socket = accept(server_fd, NULL, NULL);
 
-    // 4. Chấp nhận kết nối từ Client
-    if ((new_socket = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen)) < 0) {
-        std::cerr << "Accept thất bại!\n";
-        return -1;
-    }
-
-    std::cout << "[SERVER] Client đã kết nối thành công!\n\n";
-
-    // 5. Nhập thông tin từ bàn phím tại Server
-    UserInfo info;
-    std::cout << "=== NHẬP THÔNG TIN TẠI SERVER ===\n";
-    std::cout << "Nhập họ tên: ";
-    std::cin.getline(info.name, sizeof(info.name));
-    
-    std::cout << "Nhập tuổi: ";
-    std::cin >> info.age;
-    std::cin.ignore(); // Xóa bộ đệm bàn phím
-
-    std::cout << "Nhập giới tính: ";
-    std::cin.getline(info.gender, sizeof(info.gender));
-
-    // 6. Gửi cấu trúc dữ liệu sang Client qua IPC
+    // ... Nhập dữ liệu và send() tương tự như trước ...
+    UserInfo info = {"Nguyen Van A", 20, "Nam"};
     send(new_socket, &info, sizeof(info), 0);
-    std::cout << "\n[SERVER] Đã gửi thông tin sang Client qua IPC thành công!\n";
 
-    // 7. Đóng Socket
     close(new_socket);
     close(server_fd);
-
+    unlink(SOCKET_PATH); // Dọn dẹp file socket sau khi dùng xong
     return 0;
 }

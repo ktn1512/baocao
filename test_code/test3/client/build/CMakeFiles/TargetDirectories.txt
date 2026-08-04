@@ -1,0 +1,3 @@
+/workspaces/baocao/test_code/test3/client/build/CMakeFiles/client.dir
+/workspaces/baocao/test_code/test3/client/build/CMakeFiles/edit_cache.dir
+/workspaces/baocao/test_code/test3/client/build/CMakeFiles/rebuild_cache.dir
