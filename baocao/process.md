@@ -1,6 +1,4 @@
-Dưới đây là nội dung đã được chuyển sang định dạng **README.md** với cấu trúc rõ ràng, dễ đọc và phù hợp để đưa lên GitHub.
 
-````markdown
 # Process và Vùng Nhớ của Process
 
 ## 1. Program và Process
