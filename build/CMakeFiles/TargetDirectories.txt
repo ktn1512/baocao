@@ -1,0 +1,3 @@
+C:/Users/khanh/Documents/GitHub/baocao/build/CMakeFiles/client.dir
+C:/Users/khanh/Documents/GitHub/baocao/build/CMakeFiles/edit_cache.dir
+C:/Users/khanh/Documents/GitHub/baocao/build/CMakeFiles/rebuild_cache.dir
