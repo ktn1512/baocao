@@ -249,3 +249,48 @@ Trong ví dụ này, mã của `add()` vẫn nằm trong `libmath.so`. File `pro
 | Dùng chung bộ nhớ | Khó tối ưu hơn | Có thể dùng chung thư viện |
 
 Tóm lại, static linking ưu tiên tính độc lập khi triển khai, còn dynamic linking ưu tiên khả năng dùng chung và cập nhật thư viện linh hoạt.
+
+## 8. Static linker hoạt động như thế nào?
+
+Static linker là linker thực hiện việc ghép mã của các file object và thư viện tĩnh vào một file thực thi trước khi chương trình chạy.
+
+Quá trình thường gồm các bước:
+
+1. **Biên dịch:** Compiler biên dịch từng file `.cpp` thành file object `.o`.
+2. **Giải quyết symbol:** `main.o` có thể chứa lời gọi đến hàm `add()`, nhưng chưa biết địa chỉ của hàm đó. `math.o` chứa phần định nghĩa và mã máy của `add()`.
+3. **Tìm định nghĩa:** Linker tìm symbol `add` trong `math.o` để giải quyết lời gọi từ `main.o`.
+4. **Sắp xếp mã và dữ liệu:** Linker sắp xếp mã máy và dữ liệu của các file object vào file thực thi.
+5. **Gán địa chỉ và relocation:** Linker sửa các địa chỉ hoặc độ lệch của lệnh gọi để khi chạy, CPU nhảy đúng đến hàm `add()`.
+6. **Tạo file thực thi:** Kết quả là một file thực thi hoàn chỉnh:
+
+```text
+program = mã của main + mã của add + các phần cần thiết khác
+```
+
+Khi chạy `program`, hệ điều hành chỉ cần nạp file thực thi đó. Mã của `add()` đã nằm sẵn bên trong, nên thường không cần tìm `math.o` nữa.
+
+Nếu dùng thư viện tĩnh:
+
+```text
+main.o + libmath.a → program
+```
+
+`libmath.a` có thể chứa nhiều file object. Linker thường chỉ lấy những object cần thiết, chẳng hạn lấy `math.o` vì chương trình đang sử dụng `add()`.
+
+Lưu ý, linker không chèn mã trực tiếp vào `main.o`; nó tạo một file thực thi mới và cập nhật địa chỉ các lời gọi hàm trong file đó.
+
+## 9. Tóm tắt thời điểm nạp thư viện
+
+- **Static linking:** Mã thư viện được đưa vào file thực thi khi liên kết, trước lúc chương trình chạy. Sau đó, file thực thi được nạp vào bộ nhớ và chạy.
+- **Dynamic linking:** Mã thư viện không được đưa vào file thực thi. Khi chạy file `.exe` hoặc ELF, dynamic linker nạp thư viện vào bộ nhớ của tiến trình trong giai đoạn khởi động, thường là trước khi `main()` chạy.
+
+```text
+Static:
+build → mã thư viện nằm trong executable → chạy
+
+Dynamic:
+build → executable chỉ ghi thông tin cần thư viện
+chạy → nạp executable và thư viện vào bộ nhớ → main()
+```
+
+Nếu thiếu thư viện dynamic, chương trình thường báo lỗi ngay lúc khởi động, trước khi thực hiện `main()`.

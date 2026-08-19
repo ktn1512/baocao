@@ -1,66 +1,75 @@
 # Quá trình chạy code C/C++
 
-Khi file thực thi C/C++ được khởi chạy (`.exe` trên Windows hoặc ELF binary trên Linux), hệ điều hành sẽ tạo tiến trình, nạp chương trình vào bộ nhớ và điều phối việc thực thi.
+Sau khi biên dịch và linking, chương trình có một file thực thi. Khi người dùng chạy file này, hệ điều hành sẽ nạp chương trình vào bộ nhớ và điều phối việc thực thi.
 
 ```text
-[OS Loader] → [Tạo Process] → [Nạp vào Memory]
-            → [Dynamic Linking] → [Khởi tạo Runtime]
-            → [main()] → [Dọn dẹp và Exit]
+[File thực thi]
+      ↓
+[OS Loader đọc file]
+      ↓
+[Tạo process và cấp PID]
+      ↓
+[Nạp chương trình vào bộ nhớ]
+      ↓
+[Nạp thư viện động (.dll/.so)]
+      ↓
+[Khởi tạo runtime C/C++]
+      ↓
+[Gọi main()]
+      ↓
+[CPU thực thi từng lệnh]
+      ↓
+[Xuất kết quả, ví dụ: hello]
+      ↓
+[Dọn dẹp và kết thúc process]
 ```
 
-## 1. Nạp chương trình vào bộ nhớ
+## 1. Tạo process và nạp chương trình
 
-- Hệ điều hành tạo một tiến trình mới và cấp cho tiến trình một PID.
-- Loader đọc header của file thực thi (PE trên Windows hoặc ELF trên Linux).
-- Hệ điều hành thiết lập không gian địa chỉ ảo và ánh xạ các vùng nhớ cần thiết.
+- Hệ điều hành tạo một process mới và cấp cho process một PID.
+- OS Loader đọc cấu trúc file thực thi: PE trên Windows hoặc ELF trên Linux.
+- Chương trình được ánh xạ vào không gian địa chỉ ảo của process.
+- Các vùng nhớ chính gồm:
+  - **Text:** chứa mã máy của chương trình.
+  - **Data/BSS:** chứa biến toàn cục và biến `static`.
+  - **Heap:** dùng cho bộ nhớ cấp phát bằng `new` hoặc `malloc()`.
+  - **Stack:** chứa biến cục bộ, tham số hàm và thông tin lời gọi hàm.
 
-## 2. Cấu trúc bộ nhớ của tiến trình
+## 2. Nạp thư viện động
 
-```text
-Địa chỉ cao
-┌────────────────────────┐
-│ STACK                  │ ← Biến cục bộ, lời gọi hàm
-│ Memory Mapping         │ ← Thư viện .dll / .so
-│ HEAP                   │ ← Bộ nhớ cấp phát bằng new/malloc
-│ BSS                    │ ← Biến global/static chưa khởi tạo
-│ DATA                   │ ← Biến global/static đã khởi tạo
-│ TEXT                   │ ← Mã máy của chương trình
-└────────────────────────┘
-Địa chỉ thấp
-```
+Nếu chương trình dùng thư viện động, dynamic linker sẽ nạp các file `.dll` trên Windows hoặc `.so` trên Linux vào bộ nhớ và liên kết các hàm cần dùng.
 
-- **Text:** Chứa mã máy, thường được đặt ở chế độ chỉ đọc.
-- **Data/BSS:** Chứa biến toàn cục và biến `static`.
-- **Heap:** Dùng cho bộ nhớ cấp phát động bằng `new`, `delete`, `malloc()` và `free()`.
-- **Stack:** Chứa biến cục bộ, tham số hàm và địa chỉ quay về.
+## 3. Khởi tạo runtime
 
-## 3. Nạp thư viện động
+Trước khi gọi `main()`, runtime C/C++ sẽ:
 
-Nếu chương trình sử dụng thư viện động, dynamic linker sẽ nạp các file `.dll` hoặc `.so` vào bộ nhớ và liên kết địa chỉ của các hàm cần sử dụng. Trên Linux, dynamic linker thường là `ld-linux.so`.
-
-## 4. Khởi tạo Runtime
-
-Chương trình không bắt đầu trực tiếp từ `main()`. Trước đó, C Runtime (CRT) thực hiện một số công việc:
-
-- Chuẩn bị môi trường thực thi và các đối số `argc`, `argv`.
+- Chuẩn bị các đối số `argc`, `argv`.
 - Khởi tạo biến toàn cục và biến `static`.
 - Gọi constructor của các đối tượng toàn cục trong C++.
-- Khởi tạo các luồng vào/ra như `std::cin`, `std::cout`, `std::cerr`.
+- Chuẩn bị các luồng vào/ra như `std::cin`, `std::cout` và `std::cerr`.
 
-Sau khi hoàn tất, CRT chuyển quyền điều khiển cho hàm `main()`.
+## 4. Thực thi `main()`
 
-## 5. Thực thi hàm `main()`
+Sau khi runtime hoàn tất, quyền điều khiển được chuyển cho `main()`. CPU thực thi các lệnh trong chương trình.
 
-- Mỗi lần gọi hàm, một **stack frame** được tạo trên Stack.
-- Biến cục bộ và địa chỉ quay về được lưu trong stack frame.
-- `new` hoặc `malloc()` cấp phát bộ nhớ trên Heap.
-- Khi hàm kết thúc, stack frame của hàm được giải phóng.
+Ví dụ:
 
-## 6. Kết thúc chương trình
+```cpp
+#include <iostream>
+
+int main() {
+    std::cout << "hello";
+    return 0;
+}
+```
+
+Chuỗi `hello` được xuất ra khi CPU thực thi câu lệnh `std::cout` trong `main()`. Vì vậy, linking chỉ tạo file thực thi; phải chạy file đó thì chương trình mới in ra kết quả.
+
+## 5. Kết thúc chương trình
 
 Khi `main()` trả về hoặc chương trình gọi `exit()`:
 
-- Các destructor của đối tượng toàn cục/static được gọi theo thứ tự ngược lại.
-- Các bộ đệm I/O được xả và các file được đóng.
-- Mã thoát (exit code) được trả về cho hệ điều hành; thông thường `0` nghĩa là thành công.
-- Hệ điều hành thu hồi bộ nhớ, đóng tài nguyên và kết thúc tiến trình.
+- Các destructor cần thiết được gọi.
+- Bộ đệm I/O được xả và các file được đóng.
+- Mã thoát được trả về cho hệ điều hành; thông thường `0` nghĩa là thành công.
+- Hệ điều hành thu hồi bộ nhớ và kết thúc process.
