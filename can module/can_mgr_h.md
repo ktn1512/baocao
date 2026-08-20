@@ -40,8 +40,7 @@ Cập nhật signal CAN có kèm cơ chế chống nhiễu (debounce), chỉ cho
 
 #### public
 
-- đồng bộ toàn bộ dữ liệu CAN Signal sang Connected Service
-  `virtual void SyncBackToConnSer();`
+- đồng bộ toàn bộ dữ liệu CAN Signal sang Connected Service `virtual void SyncBackToConnSer();`
 
 - lấy dữ liệu của Signal theo ID (nếu chưa tồn tại thì tạo signal mới và trả về giá trị khởi tạo) `virtual vector<uint8_t> getSignal(uint16_t id);`
 
